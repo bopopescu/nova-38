@@ -36,7 +36,10 @@ interface_fields = ['id', 'address', 'datapath_id', 'port_no']
 def _node_dict(node_ref):
     d = {}
     for f in node_fields:
-        d[f] = node_ref.get(f)
+        if(f=="id"):
+            d[f] = node_ref.get("uuid")
+        else:
+            d[f] = node_ref.get(f)
     return d
 
 
@@ -114,16 +117,14 @@ class BareMetalNodeController(wsgi.Controller):
         context = req.environ['nova.context']
         authorize(context)
         try:
-            node = db.bm_node_get(context, id)
+            node = db.bm_node_get_by_node_uuid(context, id)
+            ifs = db.bm_interface_get_all_by_bm_node_id(context, node.id)
+            node = _node_dict(node)
+            node['interfaces'] = [_interface_dict(i) for i in ifs]
+            return {'node': node}
         except exception.NodeNotFound:
             raise webob.exc.HTTPNotFound()
-        try:
-            ifs = db.bm_interface_get_all_by_bm_node_id(context, id)
-        except exception.NodeNotFound:
-            ifs = []
-        node = _node_dict(node)
-        node['interfaces'] = [_interface_dict(i) for i in ifs]
-        return {'node': node}
+
 
     @wsgi.serializers(xml=NodeTemplate)
     def create(self, req, body):
