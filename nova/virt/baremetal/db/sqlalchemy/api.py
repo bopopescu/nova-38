@@ -222,11 +222,8 @@ def bm_node_destroy(context, bm_node_id):
     # Delete physically since these have unique columns.
     session = db_session.get_session()
     with session.begin():
-        model_query(context, models.BareMetalInterface, read_deleted="no").\
-            filter_by(bm_node_id=bm_node_id).\
-            delete()
         rows = model_query(context, models.BareMetalNode, read_deleted="no").\
-            filter_by(id=bm_node_id).\
+            filter_by(uuid=bm_node_id).\
             update({'deleted': True,
                     'deleted_at': timeutils.utcnow(),
                     'updated_at': literal_column('updated_at')})
