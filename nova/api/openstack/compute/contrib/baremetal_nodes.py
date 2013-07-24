@@ -112,18 +112,24 @@ class BareMetalNodeController(wsgi.Controller):
             nodes.append(node)
         return {'nodes': nodes}
 
+
     @wsgi.serializers(xml=NodeTemplate)
     def show(self, req, id):
         context = req.environ['nova.context']
         authorize(context)
         try:
             node = db.bm_node_get_by_node_uuid(context, id)
-            ifs = db.bm_interface_get_all_by_bm_node_id(context, node.id)
-            node = _node_dict(node)
-            node['interfaces'] = [_interface_dict(i) for i in ifs]
-            return {'node': node}
         except exception.NodeNotFound:
             raise webob.exc.HTTPNotFound()
+
+        try:
+            ifs = db.bm_interface_get_all_by_bm_node_id(context, node.id)
+        except exception.NodeNotFound:
+            ifs = []
+
+        node = _node_dict(node)
+        node['interfaces'] = [_interface_dict(i) for i in ifs]
+        return {'node': node}
 
 
     @wsgi.serializers(xml=NodeTemplate)
@@ -133,10 +139,11 @@ class BareMetalNodeController(wsgi.Controller):
         values = body['node'].copy()
         prov_mac_address = values.pop('prov_mac_address', None)
         node = db.bm_node_create(context, values)
+        id = node.get('id')
         node = _node_dict(node)
         if prov_mac_address:
             if_id = db.bm_interface_create(context,
-                                           bm_node_id=node['id'],
+                                           bm_node_id=id,
                                            address=prov_mac_address,
                                            datapath_id=None,
                                            port_no=None)
